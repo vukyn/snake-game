@@ -24,6 +24,19 @@ class Linear_QNet(nn.Module):
         filename = os.path.join(model_folder_path, filename)
         torch.save(self.state_dict(), filename)
 
+    def load(self, filename='model.pth'):
+        model_folder_path = './model'
+        filename = os.path.join(model_folder_path, filename)
+
+        if os.path.isfile(filename):
+            self.load_state_dict(torch.load(filename))
+            self.eval()
+            print('Loading existing state dict.')
+            return True
+
+        print ('No existing state dict found. Starting from scratch.')
+        return False
+
 
 class QTrainer:
     def __init__(self, model, lr, gamma):
@@ -44,8 +57,8 @@ class QTrainer:
             next_state = torch.unsqueeze(next_state, 0)
             action = torch.unsqueeze(action, 0)
             reward = torch.unsqueeze(reward, 0)
-            done = (done, )
-        
+            game_over = (game_over, )
+
         # 1:  predicted Q values with current state
         pred = self.model(state)
 
@@ -55,7 +68,8 @@ class QTrainer:
         for i in range(len(game_over)):
             Q_new = reward[i]
             if not game_over[i]:
-                Q_new = reward[i] + self.gamma * torch.max(self.model(next_state[i]))
+                Q_new = reward[i] + self.gamma * \
+                    torch.max(self.model(next_state[i]))
 
             target[i][torch.argmax(action).item()] = Q_new
 
@@ -65,4 +79,3 @@ class QTrainer:
         loss.backward()
 
         self.optimizer.step()
-

@@ -58,7 +58,7 @@ class SnakeGameAI:
             self._place_food()
 
     def play_step(self, action):
-        frame_iteration += 1
+        self.frame_iteration += 1
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
