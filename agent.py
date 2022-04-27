@@ -2,22 +2,28 @@ import torch
 import random
 import numpy as np
 from collections import deque
+from model import Linear_QNet, QTrainer
+from helper import plot
 from snake_game_ai import SnakeGameAI, Direction, Point, BLOCK_SIZE
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001
 
+
 class Agent:
 
     def __init__(self):
         self.number_games = 0
-        self.epsilon = 0 # randomness
-        self.gamma = 0 # discount rate
-        self.memory = deque(maxlen=MAX_MEMORY) # call popleft() memory if exceeded
-        self.model = None
-        self.trainer = None
-    
+        self.epsilon = 0  # randomness
+        self.gamma = 0.9  # discount rate
+
+        # call popleft() memory if exceeded
+        self.memory = deque(maxlen=MAX_MEMORY)
+
+        self.model = Linear_QNet(11, 256, 3)
+        self.trainer = QTrainer(self.model, LR, gamma=self.gamma)
+
     def get_state(self, game):
         head = game.snake[0]
         point_l = Point(head.x - BLOCK_SIZE, head.y)
@@ -54,9 +60,9 @@ class Agent:
             direction_u, direction_d,
 
             # Food location
-            game.food.x < game.head.x, # food left
-            game.food.x > game.head.x, # food right
-            game.food.y < game.head.y, # food up
+            game.food.x < game.head.x,  # food left
+            game.food.x > game.head.x,  # food right
+            game.food.y < game.head.y,  # food up
             game.food.y > game.head.y  # food down
         ]
 
@@ -71,7 +77,7 @@ class Agent:
             final_move[move] = 1
         else:
             state0 = torch.tensor(state, dtype=torch.float)
-            prediction = self.model.predict(state0)
+            prediction = self.model.forward(state0)
             move = torch.argmax(prediction).item()
             final_move[move] = 1
 
@@ -82,19 +88,22 @@ class Agent:
 
     def train_long_memory(self):
         if len(self.memory) > BATCH_SIZE:
-            mini_sample = random.sample(self.memory, BATCH_SIZE) # list of tuples
+            mini_sample = random.sample(
+                self.memory, BATCH_SIZE)  # list of tuples
         else:
             mini_sample = self.memory
 
         states, actions, rewards, next_states, game_overs = zip(*mini_sample)
-        self.trainer.train_step(states, actions, rewards, next_states, game_overs)
+        self.trainer.train_step(states, actions, rewards,
+                                next_states, game_overs)
 
     def train_short_memory(self, state, action, reward, next_state, game_over):
         self.trainer.train_step(state, action, reward, next_state, game_over)
 
+
 def train():
-    plot_score = []
-    plot_mean_score = []
+    plot_scores = []
+    plot_mean_scores = []
     total_score = 0
     record = 0
     agent = Agent()
@@ -112,7 +121,8 @@ def train():
         state_new = agent.get_state(game)
 
         # train short memory
-        agent.train_short_memory(state_current, final_move, reward, state_new, game_over)
+        agent.train_short_memory(
+            state_current, final_move, reward, state_new, game_over)
 
         # remember
         agent.remember(state_current, final_move, reward, state_new, game_over)
@@ -126,8 +136,17 @@ def train():
 
             if score > record:
                 record = score
-            
-            print ('Game', agent.number_games, 'Score', score, 'Record:', record)
+                agent.model.save()
+
+            plot_scores.append(score)
+            total_score += score
+            mean_scores = total_score / agent.number_games
+            plot_mean_scores.append(mean_scores)
+            plot(plot_scores, plot_mean_scores)
+
+            print('Game', agent.number_games,
+                  'Score', score, 'Record:', record)
+
 
 if __name__ == '__main__':
     train()
