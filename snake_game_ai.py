@@ -14,7 +14,7 @@ class Direction(Enum):
     DOWN = 4
 
 
-SPEED = 15
+SPEED = 40
 BLOCK_SIZE = 20
 WHITE = (255, 255, 255)
 RED = (200, 0, 0)
