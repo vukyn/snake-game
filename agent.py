@@ -121,7 +121,7 @@ def train():
         reward, game_over, score = game.play_step(final_move)
         state_new = agent.get_state(game)
 
-        # train short memory
+        # train short memory (Temporal Difference Learning)
         agent.train_short_memory(
             state_current, final_move, reward, state_new, game_over)
 
@@ -130,7 +130,7 @@ def train():
 
         # game over
         if game_over:
-            # train long memory
+            # train long memory (Monte Carlo Learning)
             game.reset()
             agent.number_games += 1
             agent.train_long_memory
